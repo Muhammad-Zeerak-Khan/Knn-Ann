@@ -1,0 +1,38 @@
+import pandas as pd 
+import numpy as np
+from sklearn.model_selection import train_test_split , GridSearchCV
+from sklearn.metrics import accuracy_score , confusion_matrix , roc_auc_score , roc_curve
+from pandas_profiling import ProfileReport
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import load_breast_cancer
+
+X,y = load_breast_cancer(return_X_y = True,as_frame= True)
+
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.2 , random_state= 42)
+knn = KNeighborsClassifier()
+
+knn.fit(x_train,y_train)
+initial_score = knn.score(x_test, y_test)
+print(initial_score)
+
+pram  = {
+    'n_neighbors':[3,5,7,9,12,13,15,17,21],
+    'algorithm' : ['auto', 'ball_tree', 'kd_tree', 'brute'],
+    'leaf_size' : [10 , 15 , 20 , 25 , 30 , 35 , 45 , 50 ],
+    'p' : [1,2],
+    'weights' : ['uniform', 'distance']
+    
+    
+    
+}
+grid_cv = GridSearchCV(knn,param_grid=pram )
+
+grid_cv.fit(x_train, y_train)
+
+print(grid_cv.best_params_)
+knn1 = KNeighborsClassifier(n_neighbors=21,p= 1 ,weights='distance' , leaf_size=10 , algorithm='auto')
+
+knn1.fit(x_train,y_train)
+
+knn1.score(x_test,y_test)
