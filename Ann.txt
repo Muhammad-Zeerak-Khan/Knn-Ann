@@ -1,0 +1,111 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import torch
+import torch.nn as nn
+from torchvision import transforms, datasets
+from torch.utils.data import DataLoader
+from sklearn.metrics import confusion_matrix
+
+plt.style.use('fivethirtyeight')
+
+## Loading the data
+
+ROOT_DIR = 'MNIST'
+
+
+train_data = datasets.MNIST(
+    root = ROOT_DIR,
+    train = True,
+    transform = transforms.ToTensor(),
+    target_transform = None,
+    download = True   
+
+)
+
+test_data = datasets.MNIST(
+    root = ROOT_DIR,
+    train = False,
+    transform = transforms.ToTensor(),
+    target_transform = None,
+    download = True   
+
+)
+BATCH=128
+
+train_data_loader = DataLoader(dataset=train_data,
+                              batch_size=BATCH,
+                              shuffle=True)
+
+test_data_loader = DataLoader(dataset=test_data,
+                             batch_size=BATCH)
+DEVICE = "cuda" if torch.cuda.is_available() else 'cpu'
+
+# Lets define the model
+
+class NeuralNetwork(nn.Module):
+    def __init__(self, in_, out_):
+        super(NeuralNetwork, self).__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(in_, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, out_)
+        )
+        
+    def forward(self, x):
+        return self.layers(x)
+
+model = NeuralNetwork(784, 10)
+
+model.to(DEVICE)        
+CE_loss = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters())
+## Training loop
+EPOCHS = 10
+loss_ = list()
+acc_ = list()
+
+
+for epoch in range(EPOCHS):
+    print(f"Epoch: {epoch + 1}/{EPOCHS}")
+    for batch, data in enumerate(train_data_loader):
+        x = data[0].to(DEVICE)
+        y = data[1].to(DEVICE)
+        
+        optimizer.zero_grad()
+        
+        y_pred = model(x.reshape(-1, 784))
+        
+        loss = CE_loss(y_pred, y)
+        
+        loss_.append(loss.item())
+        loss.backward()
+        optimizer.step()
+        
+        accuracy = torch.mean((torch.argmax(y_pred, 1) == y).float()).item()
+        acc_.append(accuracy)
+        
+        if batch%100 == 0:
+            print(f"   Batch: {batch}, Loss: {loss.item():.4f} Accuracy {accuracy:.4f}")
+
+# testing over the test data
+
+test_loss = 0
+test_acc = 0
+
+with torch.no_grad():
+    for batch, data in enumerate(test_data_loader):
+        x = data[0].to(DEVICE)
+        y = data[1].to(DEVICE)        
+        
+        y_pred = model(x.reshape(-1, 784))
+        loss = CE_loss(y_pred, y)
+        
+        test_loss += loss.item()
+        test_acc += torch.mean((torch.argmax(y_pred, 1) == y).float()).item()
+        batch+=1         
+print(f"test loss: {test_loss/batch:.4f}, test accuracy: {test_acc/batch:.4f}")
+
